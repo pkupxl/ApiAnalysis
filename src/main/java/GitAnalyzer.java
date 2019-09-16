@@ -8,7 +8,6 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -151,5 +150,9 @@ public class GitAnalyzer {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public static void main(String args[]){
+
     }
 }
