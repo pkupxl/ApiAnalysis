@@ -7,6 +7,7 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.treewalk.filter.PathFilter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +57,23 @@ public class GitAnalyzer {
         return null;
     }
 
+    public String getTagByCommit(RevCommit commit){
+        try{
+            Git git = new Git(repository);
+            List<Ref>tags = git.tagList().call();
+            for(Ref tag:tags){
+                RevWalk walk = new RevWalk(repository);
+                RevCommit curCommit = walk.parseCommit(tag.getObjectId());
+                if(curCommit.getId().toString().equals(commit.getId().toString())){
+                    return tag.getName();
+                }
+            }
+        }catch(Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public List<RevCommit>getReleaseVersionCommit(){
         try{
             Git git = new Git(repository);
@@ -93,6 +111,42 @@ public class GitAnalyzer {
                 FileApiPairs.put(filePath,Apis);
             }
             return FileApiPairs;
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public String getApiFilepath(String apiName, RevCommit commit){
+        Map<String,List<String>>fileApiPairs = getFileApiPair(commit);
+        for(String path:fileApiPairs.keySet()){
+            if(fileApiPairs.get(path).contains(apiName)){
+                return path;
+            }
+        }
+        return null;
+    }
+
+    public Map<String,List<String>>getApiHistory(String apiName){
+        List<RevCommit>commits = getReleaseVersionCommit();
+        String path = getApiFilepath(apiName,commits.get(commits.size()-1));
+        Map<String,List<String>>result = new HashMap<String, List<String>>();
+        try{
+            for(int i=commits.size()-1;i>=0;--i){
+                RevCommit commit = commits.get(i);
+                String Tag = getTagByCommit(commit);
+                TreeWalk treeWalk = new TreeWalk(repository);
+                treeWalk.addTree(commit.getTree());
+                treeWalk.setRecursive(true);
+                treeWalk.setFilter(PathFilter.create(path));
+                if(!treeWalk.next()) continue;
+                ObjectId objectId = treeWalk.getObjectId(0);
+                ObjectLoader loader = repository.open(objectId);
+                String Content = new String(loader.getBytes());
+                List<String>APIContents = new CodeAnalyzer().getApiContents(Content,apiName);
+                result.put(Tag,APIContents);
+            }
+            return result;
         }catch (Exception e){
             e.printStackTrace();
         }
